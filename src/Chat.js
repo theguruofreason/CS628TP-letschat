@@ -5,8 +5,9 @@ import { fetchChatHistory, getWebSocketUrl } from "./api";
 export default function Chat({ preview = true }) {
   const { uname, accessToken } = useContext(UnameContext);
 
-  const messageTextArea = useRef(null);
+  const messageInput = useRef(null);
   const socketRef = useRef(null);
+  const historyRef = useRef(null);
   const [messages, setMessages] = useState([]);
   const [error, setError] = useState(null);
 
@@ -39,6 +40,12 @@ export default function Chat({ preview = true }) {
   useEffect(() => {
     if (!accessToken) return undefined;
 
+    // React StrictMode intentionally mounts effects twice in development,
+    // which opens and immediately tears down a first socket before the
+    // "real" one connects. Closing a socket mid-handshake fires a browser
+    // error event on it - `torndown` lets us ignore that expected noise
+    // without swallowing an error from the socket actually in use.
+    let torndown = false;
     const socket = new WebSocket(getWebSocketUrl(accessToken));
     socketRef.current = socket;
 
@@ -50,34 +57,61 @@ export default function Chat({ preview = true }) {
         // ignore malformed frames
       }
     };
-    socket.onerror = () => setError("Chat connection error.");
+    socket.onerror = () => {
+      if (!torndown) setError("Chat connection error.");
+    };
 
     return () => {
+      torndown = true;
       socket.close();
       socketRef.current = null;
     };
   }, [accessToken]);
 
+  // Keep the log scrolled to the newest message.
+  useEffect(() => {
+    const el = historyRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages]);
+
   function sendMessage() {
-    const text = messageTextArea.current?.value.trim();
+    const text = messageInput.current?.value.trim();
     const socket = socketRef.current;
     if (!text || !socket || socket.readyState !== WebSocket.OPEN) return;
     socket.send(text);
-    messageTextArea.current.value = "";
+    messageInput.current.value = "";
   }
-
-  const historyText = messages.map((m) => `${m.user}: ${m.message}`).join("\n");
 
   return (
     <div className="chat-container">
-      <textarea
-        className="chat-history"
-        readOnly={true}
-        value={historyText}
-      />
+      <div className="chat-history" ref={historyRef}>
+        {messages.length === 0 ? (
+          <p className="chat-empty">No messages yet — say hello!</p>
+        ) : (
+          messages.map((m, i) => (
+            <div
+              key={m._id ?? i}
+              className={
+                "chat-message" + (m.user === uname ? " chat-message-own" : "")
+              }
+            >
+              <span className="chat-message-user">{m.user}</span>
+              <span className="chat-message-text">{m.message}</span>
+            </div>
+          ))
+        )}
+      </div>
       {!preview && (
         <div className="chat-entry">
-          <textarea disabled={uname === null} ref={messageTextArea} />
+          <input
+            type="text"
+            placeholder="Type a message…"
+            disabled={uname === null}
+            ref={messageInput}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") sendMessage();
+            }}
+          />
           <button onClick={sendMessage} disabled={uname === null}>
             Send
           </button>

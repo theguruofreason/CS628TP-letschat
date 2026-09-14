@@ -23,26 +23,32 @@ export default function Login() {
   }
 
   return (
-    <div className="a-center">
-      <form action={handleLogin} className="maxw400 a-center">
+    <div className="auth-page">
+      <form action={handleLogin} className="card auth-form">
+        <h2>Welcome back</h2>
         <div className="formline">
-          <label for="username">username</label>
-          <input name="username" type="text" placeholder="username" required />
+          <label htmlFor="username">username</label>
+          <input
+            id="username"
+            name="username"
+            type="text"
+            placeholder="username"
+            required
+          />
         </div>
         <div className="formline">
-          <label for="password">password</label>
+          <label htmlFor="password">password</label>
           <input
+            id="password"
             name="password"
             type="password"
             placeholder="password"
             required
           />
         </div>
-        <div className="formline">
-          <button type="submit">Login</button>
-        </div>
+        <button type="submit">Login</button>
+        {error && <p className="login-error">{error}</p>}
       </form>
-      {error && <p className="login-error">{error}</p>}
     </div>
   );
 }

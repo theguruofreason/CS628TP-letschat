@@ -3,7 +3,7 @@ const API_BASE_URL =
 const WS_BASE_URL =
   process.env.REACT_APP_WS_BASE_URL || API_BASE_URL.replace(/^http/, "ws");
 
-function decodeJwtPayload(token) {
+export function decodeJwtPayload(token) {
   try {
     const payload = token.split(".")[1];
     const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
@@ -78,6 +78,22 @@ export async function refreshSession() {
   } catch {
     return null;
   }
+}
+
+export async function fetchProfile(accessToken) {
+  const res = await apiFetch("/profile", { accessToken });
+  if (!res.ok) throw new Error("Failed to load profile.");
+  return res.json();
+}
+
+export async function updateProfile(accessToken, updates) {
+  const res = await apiFetch("/profile", {
+    method: "PUT",
+    accessToken,
+    body: JSON.stringify(updates),
+  });
+  if (!res.ok) throw new Error("Failed to save profile.");
+  return res.json();
 }
 
 export async function fetchChatHistory() {
